@@ -1,5 +1,5 @@
 [programs.localnet]
-mywallet = "AJKJVBUiLsE453wiKgowNtgLtrZUVv5GRsGuBrXY9GCq"
+marketplace = "AJKJVBUiLsE453wiKgowNtgLtrZUVv5GRsGuBrXY9GCq"
 
 [registry]
 url = "https://anchor.projectserum.com"
