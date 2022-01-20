@@ -1,14 +1,12 @@
-// anchor-escrow.ts
+/** anchor-escrow.ts
 
 import * as anchor from '@project-serum/anchor';
 import { Program } from '@project-serum/anchor';
 import { Marketplace } from '../target/types/marketplace';
-import { PublicKey, SystemProgram, Transaction } from '@solana/web3.js';
+import { PublicKey, SystemProgram, Transaction, TokenAccountsFilter } from '@solana/web3.js';
 import { TOKEN_PROGRAM_ID, Token } from "@solana/spl-token";
 import { assert } from "chai";
-import * as NFTs from '@primenums/solana-nft-tools';
 import * as web3 from '@solana/web3.js';
-import {toPublicKey} from '@primenums/solana-nft-tools/lib/utils.js'
 
 describe('anchor-escrow', () => {
 
@@ -30,13 +28,14 @@ describe('anchor-escrow', () => {
   const initializerAmount = 500;
 
   const marketAccount = anchor.web3.Keypair.generate();
+  const marketAccount1 = anchor.web3.Keypair.generate();
   const mintAuthority = anchor.web3.Keypair.generate();
   const hostAccount = anchor.web3.Keypair.generate();
   const takerMainAccount = anchor.web3.Keypair.generate();
   const payer = anchor.web3.Keypair.generate();
 
 
-  const opts = "processed";
+  const opts = "confirmed";
   const network = "http://127.0.0.1:8899";
 
   it("Initialize program state", async () => {
@@ -71,7 +70,7 @@ describe('anchor-escrow', () => {
       TOKEN_PROGRAM_ID
     );
 
-    initializerTokenAccount1 = await mint.createAccount(hostAccount.publicKey);
+    /*initializerTokenAccount1 = await mint.createAccount(hostAccount.publicKey);
     initializerTokenAccount2 = await mint.createAccount(hostAccount.publicKey);
 
     await mint.mintTo(
@@ -96,24 +95,6 @@ describe('anchor-escrow', () => {
     
   });
 
-  it("List state", async () => {
-    const conn = new web3.Connection(network, opts);
-    let allMyNFTs = await NFTs.getMintTokensByOwner(conn, hostAccount.publicKey);
-
-    allMyNFTs.forEach(async element => {
-      let mintPublicKey = toPublicKey(element);
-      try {
-        let largestAccs = await conn.getTokenLargestAccounts(mintPublicKey, opts);
-        console.log(element, largestAccs.value[0].amount);
-      } catch (err) {
-        return {
-          error: err.message
-        };
-      }
-    });
-  });
-
-
   it("Initialize marketplace", async () => {
     const [_vault_account_pda, _vault_account_bump] = await PublicKey.findProgramAddress(
       [Buffer.from(anchor.utils.bytes.utf8.encode("marketplace"))],
@@ -121,12 +102,6 @@ describe('anchor-escrow', () => {
     );
     vault_account_pda = _vault_account_pda;
     vault_account_bump = _vault_account_bump;
-
-    const [_vault_authority_pda, _vault_authority_bump] = await PublicKey.findProgramAddress(
-      [Buffer.from(anchor.utils.bytes.utf8.encode("market"))],
-      program.programId
-    );
-    vault_authority_pda = _vault_authority_pda;
 
     await program.rpc.initialize(
       vault_account_bump,
@@ -144,26 +119,41 @@ describe('anchor-escrow', () => {
         instructions: [
           await program.account.marketAccount.createInstruction(marketAccount),
         ],
-        signers: [marketAccount, hostAccount],
+        signers: [hostAccount, marketAccount],
       }
     );
 
-    let _marketAccount = await program.account.marketAccount.fetch(
-      marketAccount.publicKey
-    );
+    const conn = new web3.Connection(network, opts);
+    const accounts = await conn.getProgramAccounts(TOKEN_PROGRAM_ID);
+    //console.log(accounts);
+    //console.log(TOKEN_PROGRAM_ID);
+    accounts.forEach(async element => {
+      //console.log(element.account.owner);
+      //console.log(element.account.lamports);
+    });
 
+    //console.log(hostAccount.publicKey);
+    //let valut_account = await conn.getAccountInfo(vault_account_pda);
+    //console.log(valut_account);
     // Check that the values in the escrow account match what we expect.
-    assert.ok(_marketAccount.initializerKey.equals(hostAccount.publicKey));
-    assert.ok(_marketAccount.amount.toNumber() == initializerAmount);
+    //assert.ok(_marketAccount.initializerKey.equals(hostAccount.publicKey));
+    //assert.ok(_marketAccount.amount.toNumber() == initializerAmount);
   });
 
-  it("Buy state", async () => {
+  //it("Buy state", async () => {
+    const [_vault_account_pda, _vault_account_bump] = await PublicKey.findProgramAddress(
+      [Buffer.from(anchor.utils.bytes.utf8.encode("marketplace"))],
+      program.programId
+    );
+    vault_account_pda = _vault_account_pda;
+    vault_account_bump = _vault_account_bump;
+
     await program.rpc.buy({
       accounts: {
         initializer: hostAccount.publicKey,
         vaultAccount: vault_account_pda,
         mint: mint.publicKey,
-        marketAccount: marketAccount.publicKey,
+        marketAccount: takerMainAccount.publicKey,
         tokenProgram: TOKEN_PROGRAM_ID,
       },
       signers: [hostAccount]
@@ -171,6 +161,98 @@ describe('anchor-escrow', () => {
 
     //initializerTokenAccount2 = await mint.createAccount(marketAccount.publicKey);
     
-    console.log(marketAccount);
+    console.log(initializerTokenAccount1);
+  });//
+
+  
+  it("Initialize marketplace", async () => {
+    const [_vault_account_pda, _vault_account_bump] = await PublicKey.findProgramAddress(
+      [Buffer.from(anchor.utils.bytes.utf8.encode("marketplace"))],
+      program.programId
+    );
+    vault_account_pda = _vault_account_pda;
+    vault_account_bump = _vault_account_bump;
+
+    await program.rpc.initialize(
+      vault_account_bump,
+      new anchor.BN(initializerAmount),
+      {
+        accounts: {
+          initializer: hostAccount.publicKey,
+          vaultAccount: vault_account_pda,
+          mint: mint.publicKey,
+          marketAccount: marketAccount1.publicKey,
+          systemProgram: anchor.web3.SystemProgram.programId,
+          rent: anchor.web3.SYSVAR_RENT_PUBKEY,
+          tokenProgram: TOKEN_PROGRAM_ID,
+        },
+        instructions: [
+          await program.account.marketAccount.createInstruction(marketAccount),
+        ],
+        signers: [hostAccount, marketAccount],
+      }
+    );
+
+    const conn = new web3.Connection(network, opts);
+    const accounts = await conn.getProgramAccounts(TOKEN_PROGRAM_ID);
+    //console.log(accounts);
+    //console.log(TOKEN_PROGRAM_ID);
+    accounts.forEach(async element => {
+      //console.log(element.account.owner);
+      //console.log(element.account.lamports);
+    });
+
+    //console.log(hostAccount.publicKey);
+    //let valut_account = await conn.getAccountInfo(vault_account_pda);
+    //console.log(valut_account);
+    // Check that the values in the escrow account match what we expect.
+    //assert.ok(_marketAccount.initializerKey.equals(hostAccount.publicKey));
+    //assert.ok(_marketAccount.amount.toNumber() == initializerAmount);
+  });
+
+  it("List state", async () => {
+    const conn = new web3.Connection(network, opts);
+    const accounts = await conn.getParsedProgramAccounts(
+      TOKEN_PROGRAM_ID,
+      {
+        filters: [
+          {
+            dataSize: 165, // number of bytes
+          },
+          {
+            memcmp: {
+              offset: 32, // number of bytes
+              bytes: hostAccount.publicKey.toBase58(), // base58 encoded string
+            },
+          },
+        ],
+      }
+    );
+
+    const accountss = await conn.getParsedTokenAccountsByOwner(
+      hostAccount.publicKey, 
+      {
+            mint : mint.publicKey,
+            programId: TOKEN_PROGRAM_ID,
+      });
+
+    //console.log(accounts);
+    //console.log(accountss);
+
+    const temp = await program.account.marketAccount.all();
+    console.log(temp);
+
+    accountss.value.forEach(async element => {
+      //let balance = await conn.getTokenAccountBalance(element.pubkey);
+      //console.log(element.pubkey, balance.value.amount);
+      let _marketAccount = await program.account.marketAccount.fetch(
+        element.pubkey
+      );
+      console.log(_marketAccount);
+      //console.log(element.account.owner);
+      //console.log(element.account.data);        
+    }); 
   });
 });
+
+*/

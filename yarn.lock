@@ -73,6 +73,13 @@
   dependencies:
     "buffer" "~6.0.3"
 
+"@solana/spl-token-registry@^0.2.1618":
+  "integrity" "sha512-V4OLmj+p4SRrhTrNM93O7hCJ5xl25mbfHRz+pGxrBVuccMiQc3jURdb5M3lb483FLc24jzBkhVB/7VmxEHCsfg=="
+  "resolved" "https://registry.npmjs.org/@solana/spl-token-registry/-/spl-token-registry-0.2.1618.tgz"
+  "version" "0.2.1618"
+  dependencies:
+    "cross-fetch" "3.0.6"
+
 "@solana/spl-token@^0.1.8":
   "integrity" "sha512-LZmYCKcPQDtJgecvWOgT/cnoIQPWjdH+QVyzPcFvyDUiT0DiRjZaam4aqNUyvchLFhzgunv3d9xOoyE34ofdoQ=="
   "resolved" "https://registry.npmjs.org/@solana/spl-token/-/spl-token-0.1.8.tgz"
@@ -420,6 +427,13 @@
   "integrity" "sha512-1eAtFWdIubi6T4XPy6ei9iUFoKpUkIF971QLN8lIvvvwueI65+Nw5haMNKUwfJxabqlIIDODJKGrQ66gxC0PbQ=="
   "resolved" "https://registry.npmjs.org/cross-fetch/-/cross-fetch-3.1.4.tgz"
   "version" "3.1.4"
+  dependencies:
+    "node-fetch" "2.6.1"
+
+"cross-fetch@3.0.6":
+  "integrity" "sha512-KBPUbqgFjzWlVcURG+Svp9TlhA5uliYtiNx/0r8nv0pdypeQCRJ9IaSIc3q/x3q8t3F75cHuwxVql1HFGHCNJQ=="
+  "resolved" "https://registry.npmjs.org/cross-fetch/-/cross-fetch-3.0.6.tgz"
+  "version" "3.0.6"
   dependencies:
     "node-fetch" "2.6.1"
 

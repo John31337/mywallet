@@ -1,6 +1,6 @@
 use anchor_lang::prelude::*;
-use anchor_spl::token::{ self, Mint, SetAuthority, TokenAccount, Transfer, CloseAccount};
-use spl_token::instruction::{ AuthorityType };
+use anchor_spl::token::{ self, Mint, SetAuthority, TokenAccount, Transfer};
+use spl_token::instruction::AuthorityType;
 
 declare_id!("AJKJVBUiLsE453wiKgowNtgLtrZUVv5GRsGuBrXY9GCq");
 
@@ -9,8 +9,8 @@ declare_id!("AJKJVBUiLsE453wiKgowNtgLtrZUVv5GRsGuBrXY9GCq");
 #[account]
 pub struct MarketAccount {
     pub initializer_key: Pubkey,
-    pub mint_key: Pubkey,
-    pub owner_key: Pubkey,
+    pub initializer_market_account: Pubkey,
+    pub valut_account: Pubkey,
     pub amount: u64,
 }
 
@@ -31,25 +31,29 @@ pub mod marketplace {
         let (_vault_authority, _vault_authority_bump) =
         Pubkey::find_program_address(&[MARKET_PDA_SEED], ctx.program_id);
 
-        ctx.accounts.market_account.mint_key = *ctx.accounts.mint.to_account_info().key;
-        ctx.accounts.market_account.owner_key = *ctx.accounts.vault_account.to_account_info().key;
-
         token::set_authority(
             ctx.accounts.into_set_authority_context(),
             AuthorityType::AccountOwner,
             Some(_vault_authority),
         )?;
 
-        //token::transfer(
-            //ctx.accounts.into_transfer_to_pda_context(),
-            //ctx.accounts.market_account.amount,
-        //)?;
+        Ok(())
+    }
+
+    pub fn buy(ctx: Context<Buy>) -> ProgramResult {
+        let (_vault_authority, _vault_authority_bump) =
+            Pubkey::find_program_address(&[MARKET_PDA_SEED], ctx.program_id);
+
+        token::transfer(
+            ctx.accounts.into_transfer_to_pda_context(),
+            ctx.accounts.market_account.amount,
+        )?;
 
         Ok(())
     }
+
+    
 }
-
-
 // Instructions (fully implementated)
 
 #[derive(Accounts)]
@@ -75,25 +79,22 @@ pub struct Initialize<'info> {
 }
 
 #[derive(Accounts)]
-pub struct Create<'info> {
-    #[account(signer)]
-    pub taker: AccountInfo<'info>,
-    #[account(mut)]
-    pub taker_receive_token_account: Account<'info, TokenAccount>,
-    #[account(mut)]
+pub struct Buy<'info> {
+    #[account(mut, signer)]
     pub initializer: AccountInfo<'info>,
+    pub mint: Account<'info, Mint>,
     #[account(
         mut,
-        constraint = market_account.amount <= taker_receive_token_account.amount,
         constraint = market_account.initializer_key == *initializer.key,
         close = initializer
     )]
     pub market_account: Box<Account<'info, MarketAccount>>,
     #[account(mut)]
     pub vault_account: Account<'info, TokenAccount>,
-    pub vault_authority: AccountInfo<'info>,
     pub token_program: AccountInfo<'info>,
 }
+
+
 
 // Utils (fully implemented)
 
@@ -102,6 +103,17 @@ impl<'info> Initialize<'info> {
         let cpi_accounts = SetAuthority {
             account_or_mint: self.vault_account.to_account_info().clone(),
             current_authority: self.initializer.clone(),
+        };
+        CpiContext::new(self.token_program.clone(), cpi_accounts)
+    }
+}
+
+impl<'info> Buy<'info> {
+    fn into_transfer_to_pda_context(&self) -> CpiContext<'_, '_, '_, 'info, Transfer<'info>> {
+        let cpi_accounts = Transfer {
+            from: self.initializer.to_account_info().clone(),
+            to: self.vault_account.to_account_info().clone(),
+            authority: self.initializer.clone(),
         };
         CpiContext::new(self.token_program.clone(), cpi_accounts)
     }

@@ -159,8 +159,20 @@ describe("test token", () => {
 
       const conn = new web3.Connection(network, opts.preflightCommitment);
       let mints = await NFTs.getMintTokensByOwner(conn, initializerMainAccount.publicKey);
+      
+      NFTs.getNFTsByOwner()
+      NFTs.getMintTokensByOwner()
+      NFTs.getMintTokenOwner()
+      NFTs.getMintTokenMeta()
+      NFTs.getNFTByMintAddress()
+
+      NFTs.toNFT()
+      let temp = NFTs.getNFTByMintAddress(element);
+      console.log(temp.amount.toNumber());
       console.log('mints', mints);
-  
+
+      mintA.getAccountInfo()
+
       // Check that the new owner is the PDA.
       assert.ok(_vault.owner.equals(vault_authority_pda));
   
