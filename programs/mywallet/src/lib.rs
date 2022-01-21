@@ -10,6 +10,7 @@ declare_id!("AJKJVBUiLsE453wiKgowNtgLtrZUVv5GRsGuBrXY9GCq");
 pub struct MarketAccount {
     pub initializer_key: Pubkey,
     pub mint_key: Pubkey,
+    pub token_key: Pubkey,
     pub owner_key: Pubkey,
     pub amount: u64,
 }
@@ -20,8 +21,8 @@ pub mod marketplace {
 
     const MARKET_PDA_SEED: &[u8] = b"marketplace";
 
-    pub fn initialize(
-        ctx: Context<Initialize>,
+    pub fn add_nft(
+        ctx: Context<AddNFT>,
         _vault_account_bump: u8,
         initializer_amount: u64,
     ) -> ProgramResult {
@@ -32,7 +33,7 @@ pub mod marketplace {
         Pubkey::find_program_address(&[MARKET_PDA_SEED], ctx.program_id);
 
         ctx.accounts.market_account.mint_key = *ctx.accounts.mint.to_account_info().key;
-        ctx.accounts.market_account.owner_key = *ctx.accounts.vault_account.to_account_info().key;
+        ctx.accounts.market_account.owner_key = *ctx.accounts.token_account.to_account_info().key;
 
         token::set_authority(
             ctx.accounts.into_set_authority_context(),
@@ -40,10 +41,21 @@ pub mod marketplace {
             Some(_vault_authority),
         )?;
 
-        //token::transfer(
-            //ctx.accounts.into_transfer_to_pda_context(),
-            //ctx.accounts.market_account.amount,
-        //)?;
+        Ok(())
+    }
+
+    pub fn buy(
+        ctx: Context<Buy>,
+    ) -> ProgramResult {
+        let (_vault_authority, _vault_authority_bump) =
+        Pubkey::find_program_address(&[MARKET_PDA_SEED], ctx.program_id);
+        ctx.accounts.market_account.owner_key = *ctx.accounts.buyer_account.to_account_info().key;
+        /*token::set_authority(
+            ctx.accounts.into_set_authority_context(),
+            AuthorityType::AccountOwner,
+            Some(_vault_authority),
+        )?;*/
+
 
         Ok(())
     }
@@ -54,7 +66,7 @@ pub mod marketplace {
 
 #[derive(Accounts)]
 #[instruction(vault_account_bump: u8, initializer_amount: u64)]
-pub struct Initialize<'info> {
+pub struct AddNFT<'info> {
     #[account(mut, signer)]
     pub initializer: AccountInfo<'info>,
     pub mint: Account<'info, Mint>,
@@ -66,7 +78,7 @@ pub struct Initialize<'info> {
         token::mint = mint,
         token::authority = initializer,
     )]
-    pub vault_account: Account<'info, TokenAccount>,
+    pub token_account: Account<'info, TokenAccount>,
     #[account(zero)]
     pub market_account: Box<Account<'info, MarketAccount>>,
     pub system_program: AccountInfo<'info>,
@@ -75,34 +87,35 @@ pub struct Initialize<'info> {
 }
 
 #[derive(Accounts)]
-pub struct Create<'info> {
-    #[account(signer)]
-    pub taker: AccountInfo<'info>,
-    #[account(mut)]
-    pub taker_receive_token_account: Account<'info, TokenAccount>,
-    #[account(mut)]
+pub struct Buy<'info> {
+    #[account(mut, signer)]
     pub initializer: AccountInfo<'info>,
-    #[account(
-        mut,
-        constraint = market_account.amount <= taker_receive_token_account.amount,
-        constraint = market_account.initializer_key == *initializer.key,
-        close = initializer
-    )]
-    pub market_account: Box<Account<'info, MarketAccount>>,
     #[account(mut)]
-    pub vault_account: Account<'info, TokenAccount>,
-    pub vault_authority: AccountInfo<'info>,
+    pub market_account: Box<Account<'info, MarketAccount>>,
+    pub token_account: Account<'info, TokenAccount>,
     pub token_program: AccountInfo<'info>,
+    pub buyer_account: AccountInfo<'info>,
 }
 
 // Utils (fully implemented)
 
-impl<'info> Initialize<'info> {
+impl<'info> AddNFT<'info> {
     fn into_set_authority_context(&self) -> CpiContext<'_, '_, '_, 'info, SetAuthority<'info>> {
         let cpi_accounts = SetAuthority {
-            account_or_mint: self.vault_account.to_account_info().clone(),
+            account_or_mint: self.token_account.to_account_info().clone(),
             current_authority: self.initializer.clone(),
         };
         CpiContext::new(self.token_program.clone(), cpi_accounts)
     }
 }
+
+impl<'info> Buy<'info> {
+    fn into_set_authority_context(&self) -> CpiContext<'_, '_, '_, 'info, SetAuthority<'info>> {
+        let cpi_accounts = SetAuthority {
+            account_or_mint: self.token_account.to_account_info().clone(),
+            current_authority: self.initializer.clone(),
+        };
+        CpiContext::new(self.token_program.clone(), cpi_accounts)
+    }
+}
+
